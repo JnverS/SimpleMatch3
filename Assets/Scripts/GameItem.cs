@@ -8,6 +8,8 @@ public class GameItem : MonoBehaviour
     public int xIndex;
     public int yIndex;
 
+    Board _board;
+
     bool _isMoving = false;
     void Start()
     {
@@ -17,15 +19,14 @@ public class GameItem : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.RightArrow))
-        {
-            Move((int)transform.position.x + 2, (int)transform.position.y, 0.5f);
-        }
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
-        {
-            Move((int)transform.position.x - 2, (int)transform.position.y, 0.5f);
-        }
+       
     }
+
+    public void Init(Board board)
+    {
+        _board = board;
+    }
+
     public void SetCoord(int x, int y)
     {
         xIndex = x;
@@ -52,8 +53,10 @@ public class GameItem : MonoBehaviour
             if (Vector3.Distance(transform.position, destination) < 0.01f)
             {
                 reachedDestination = true;
-                transform.position = destination;
-                SetCoord((int)destination.x, (int)destination.y);
+                if (_board != null)
+                {
+                    _board.PlaceGameItem(this, (int) destination.x, (int) destination.y);
+                }
                 break;
             }
 

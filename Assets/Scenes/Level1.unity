@@ -318,9 +318,7 @@ MonoBehaviour:
   tilePrefab: {fileID: 6497575078885705652, guid: 8bee2d8071461434b8cd0b6e8f93688a, type: 3}
   gameItemPrefabs:
   - {fileID: 3400159385324070327, guid: 76466603479e8624389cf78ae0568309, type: 3}
-  - {fileID: 0}
-  - {fileID: 8264930846844306115, guid: 28711a6f1383d1043badedac617818dc, type: 3}
-  - {fileID: 7759181270806013165, guid: 382caf0f4e31ba24d93aa1fb0c29951b, type: 3}
+  - {fileID: 8680350192687927625, guid: b845eeff3d1abaf4d8cd78c24702a79b, type: 3}
   - {fileID: 5712722876166352162, guid: 84193434b5687cf438dffcdb62c3fd4f, type: 3}
   - {fileID: 2234719979007876926, guid: 67b736c426ee9454e919b209189f5b3e, type: 3}
   - {fileID: 3910767574598248135, guid: 871dedeae3ec4fa488f248f62c693c4b, type: 3}
