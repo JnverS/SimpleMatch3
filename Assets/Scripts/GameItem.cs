@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -11,6 +10,19 @@ public class GameItem : MonoBehaviour
     Board _board;
 
     bool _isMoving = false;
+    public MatchValue matchValue;
+    public enum MatchValue
+    {
+        Yellow,
+        Blue, 
+        Cyan,
+        Magenta,
+        Green,
+        Indigo,
+        Red,
+        Teal,
+        Wild
+    }
     void Start()
     {
 
