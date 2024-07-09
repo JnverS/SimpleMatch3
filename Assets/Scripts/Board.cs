@@ -29,7 +29,6 @@ public class Board : MonoBehaviour
         SetupTiles();
         SetupCamera();
         FillRandom();
-        HighlightMatches();
     }
 
     void SetupTiles()
@@ -137,11 +136,35 @@ public class Board : MonoBehaviour
 
     private void SwitchTiles(Tile clickedTile, Tile targetTile)
     {
+        StartCoroutine(SwitchTilesRoutine(clickedTile, targetTile));
+    }
+
+    IEnumerator SwitchTilesRoutine(Tile clickedTile, Tile targetTile)
+    {
         GameItem clicked = _allGameItems[clickedTile.xIndex, clickedTile.yIndex];
         GameItem target = _allGameItems[targetTile.xIndex, targetTile.yIndex];
 
-        clicked.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
-        target.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
+        if (clicked != null && target != null)
+        {
+            clicked.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
+            target.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
+
+            yield return new WaitForSeconds(swapTime);
+
+            List<GameItem> clickedMatches = FindMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
+            List<GameItem> targetMatches = FindMatchesAt(targetTile.xIndex, targetTile.yIndex);
+
+            if (targetMatches.Count == 0 && clickedMatches.Count == 0)
+            {
+                clicked.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
+                target.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
+            }
+
+            yield return new WaitForSeconds(swapTime);
+
+            HighlightMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
+            HighlightMatchesAt(targetTile.xIndex, targetTile.yIndex);
+        }
     }
 
     bool IsNextTo(Tile start, Tile end)
@@ -189,12 +212,18 @@ public class Board : MonoBehaviour
             }
 
             GameItem nextItem = _allGameItems[nextX, nextY];
-            if (nextItem.matchValue == startItem.matchValue && !matches.Contains(nextItem))
-            {
-                matches.Add(nextItem);
-            }
-            else
+
+            if (nextItem == null)
                 break;
+            else
+            {
+                if (nextItem.matchValue == startItem.matchValue && !matches.Contains(nextItem))
+                {
+                    matches.Add(nextItem);
+                }
+                else
+                    break;
+            }
         }
 
         if (matches.Count >= minLength)
@@ -240,38 +269,89 @@ public class Board : MonoBehaviour
         return (combineMatches.Count >= minLength) ? combineMatches : null;
     }
 
+    void HighlightTileOff(int x, int y)
+    {
+        SpriteRenderer spriteRenderer = _allTiles[x, y].GetComponent<SpriteRenderer>();
+        spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, spriteRenderer.color.b, 0);
+    }
+
+    void HighlightTileOn(int x, int y, Color color)
+    {
+        SpriteRenderer spriteRenderer = _allTiles[x, y].GetComponent<SpriteRenderer>();
+        spriteRenderer.color = color;
+    }
+
     void HighlightMatches()
     {
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < height; j++)
             {
-                SpriteRenderer spriteRenderer = _allTiles[i, j].GetComponent<SpriteRenderer>();
-                spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, spriteRenderer.color.b, 0);
-
-                List<GameItem> horizMatches = FindHorizontalMatches(i, j, 3);
-                List<GameItem> verticalMatches = FindVerticalMatches(i, j, 3);
-
-                if (horizMatches == null)
-                {
-                    horizMatches = new List<GameItem>();
-                }
-                if (verticalMatches == null)
-                {
-                    verticalMatches = new List<GameItem>();
-                }
-
-                List<GameItem> combineMatches = horizMatches.Union(verticalMatches).ToList();
-
-                if (combineMatches.Count > 0)
-                {
-                    foreach (GameItem item in combineMatches)
-                    {
-                        spriteRenderer = _allTiles[item.xIndex, item.yIndex].GetComponent<SpriteRenderer>();
-                        spriteRenderer.color = item.GetComponent<SpriteRenderer>().color;
-                    }
-                }
+                HighlightMatchesAt(i, j);
             }
+        }
+    }
+
+    private void HighlightMatchesAt(int x, int y)
+    {
+        HighlightTileOff(x, y);
+
+        List<GameItem> combineMatches = FindMatchesAt(x, y);
+
+        if (combineMatches.Count > 0)
+        {
+            foreach (GameItem item in combineMatches)
+            {
+                HighlightTileOn(item.xIndex, item.yIndex, item.GetComponent<SpriteRenderer>().color);
+            }
+        }
+    }
+
+    private List<GameItem> FindMatchesAt(int x, int y, int minLength = 3)
+    {
+        List<GameItem> horizMatches = FindHorizontalMatches(x, y, minLength);
+        List<GameItem> verticalMatches = FindVerticalMatches(x, y, minLength);
+
+        if (horizMatches == null)
+        {
+            horizMatches = new List<GameItem>();
+        }
+        if (verticalMatches == null)
+        {
+            verticalMatches = new List<GameItem>();
+        }
+
+        List<GameItem> combineMatches = horizMatches.Union(verticalMatches).ToList();
+        return combineMatches;
+    }
+
+    void ClearItemAt(int x, int y)
+    {
+        GameItem itemToClear = _allGameItems[x, y];
+        if (itemToClear != null)
+        {
+            _allGameItems[x, y] = null;
+            Destroy(itemToClear.gameObject);
+        }
+        HighlightTileOff(x, y);
+    }
+
+    void ClearBoard()
+    {
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                ClearItemAt(i, j);
+            }
+        }
+    }
+
+    void ClearItemAt(List<GameItem> gameItems)
+    {
+        foreach (GameItem item in gameItems)
+        {
+            ClearItemAt(item.xIndex, item.yIndex);
         }
     }
 }
