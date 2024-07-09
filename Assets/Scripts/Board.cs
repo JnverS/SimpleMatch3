@@ -13,7 +13,7 @@ public class Board : MonoBehaviour
     public GameObject tilePrefab;
     public GameObject[] gameItemPrefabs;
 
-    public float swapTime = 0.5f;
+    public float swapTime = 0.3f;
 
     Tile[,] _allTiles;
     GameItem[,] _allGameItems;
@@ -28,7 +28,7 @@ public class Board : MonoBehaviour
 
         SetupTiles();
         SetupCamera();
-        FillRandom();
+        FillBoard();
     }
 
     void SetupTiles()
@@ -82,29 +82,64 @@ public class Board : MonoBehaviour
 
     bool IsWithBounds(int x, int y) =>
        (x >= 0 && x < width && y >= 0 && y < height);
-    void FillRandom()
+    void FillBoard()
     {
+        int maxIterations = 100;
+        int iterations = 0;
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < height; j++)
             {
-                GameObject item = GetRandomGameItem();
-                if (item != null)
+                GameItem item = FillRandomAt(i, j);
+                iterations = 0;
+
+                while (HasMatchOnFill(i, j))
                 {
-                    GameObject randomItem = Instantiate(item, Vector3.zero, Quaternion.identity);
-                    if (randomItem != null)
+                    ClearItemAt(i, j);
+                    item = FillRandomAt(i, j);
+                    iterations++;
+
+                    if (iterations >= maxIterations)
                     {
-                        randomItem.GetComponent<GameItem>().Init(this);
-                        PlaceGameItem(randomItem.GetComponent<GameItem>(), i, j);
-                        randomItem.transform.parent = transform;
+                        break;
                     }
-                }
-                else
-                {
-                    Debug.LogError("item is null! fill the array!");
                 }
             }
         }
+    }
+
+    private GameItem FillRandomAt(int x, int y)
+    {
+        GameObject item = GetRandomGameItem();
+        if (item != null)
+        {
+            GameObject randomItem = Instantiate(item, Vector3.zero, Quaternion.identity);
+            if (randomItem != null)
+            {
+                randomItem.GetComponent<GameItem>().Init(this);
+                PlaceGameItem(randomItem.GetComponent<GameItem>(), x, y);
+                randomItem.transform.parent = transform;
+                return randomItem.GetComponent<GameItem>();
+            }
+        }
+        else
+        {
+            Debug.LogError("item is null! fill the array!");
+        }
+        return null;
+    }
+
+    bool HasMatchOnFill(int x, int y, int minLength = 3)
+    {
+        List<GameItem> leftMatches = FindMatches(x, y, new Vector3(-1, 0), minLength);
+        List<GameItem> downMatches = FindMatches(x, y, new Vector3(0, -1), minLength);
+
+        if (leftMatches == null)
+            leftMatches = new List<GameItem>();
+        if (downMatches == null)
+            downMatches = new List<GameItem>();
+
+        return (leftMatches.Count > 0 || downMatches.Count > 0);
     }
 
     public void ClickTile(Tile tile)
@@ -159,11 +194,12 @@ public class Board : MonoBehaviour
                 clicked.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
                 target.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
             }
+            else
+            {
+                yield return new WaitForSeconds(swapTime);
 
-            yield return new WaitForSeconds(swapTime);
-
-            HighlightMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
-            HighlightMatchesAt(targetTile.xIndex, targetTile.yIndex);
+                ClearAndRefillBoard(clickedMatches.Union(targetMatches).ToList());
+            }
         }
     }
 
@@ -307,6 +343,17 @@ public class Board : MonoBehaviour
         }
     }
 
+    void HighlightItems(List<GameItem> gameItems)
+    {
+        foreach (GameItem item in gameItems)
+        {
+            if (item != null)
+            {
+                HighlightTileOn(item.xIndex, item.yIndex, item.GetComponent<SpriteRenderer>().color);
+            }
+        }
+    }
+
     private List<GameItem> FindMatchesAt(int x, int y, int minLength = 3)
     {
         List<GameItem> horizMatches = FindHorizontalMatches(x, y, minLength);
@@ -324,7 +371,15 @@ public class Board : MonoBehaviour
         List<GameItem> combineMatches = horizMatches.Union(verticalMatches).ToList();
         return combineMatches;
     }
-
+    List<GameItem> FindMatchesAt(List<GameItem> gameItems, int minLength = 3)
+    {
+        List<GameItem> matches = new List<GameItem>();
+        foreach (GameItem item in gameItems)
+        {
+            matches = matches.Union(FindMatchesAt(item.xIndex, item.yIndex, minLength)).ToList();
+        }
+        return matches;
+    }
     void ClearItemAt(int x, int y)
     {
         GameItem itemToClear = _allGameItems[x, y];
@@ -351,7 +406,108 @@ public class Board : MonoBehaviour
     {
         foreach (GameItem item in gameItems)
         {
-            ClearItemAt(item.xIndex, item.yIndex);
+            if (item != null)
+            {
+                ClearItemAt(item.xIndex, item.yIndex);
+            }
         }
+    }
+
+    List<GameItem> CollapseColumn(int column, float collapseTime = .2f)
+    {
+        List<GameItem> movingItems = new List<GameItem>();
+
+        for (int i = 0; i < height - 1; i++)
+        {
+            if (_allGameItems[column, i] == null)
+            {
+                for (int j = i + 1; j < height; j++)
+                {
+                    if (_allGameItems[column, j] != null)
+                    {
+                        _allGameItems[column, j].Move(column, i, collapseTime);
+                        _allGameItems[column, i] = _allGameItems[column, j];
+                        _allGameItems[column, i].SetCoord(column, i);
+
+                        if (!movingItems.Contains(_allGameItems[column, i]))
+                        {
+                            movingItems.Add(_allGameItems[column, i]);
+                        }
+                        _allGameItems[column, j] = null;
+                        break;
+                    }
+                }
+            }
+        }
+        return movingItems;
+    }
+
+    List<GameItem> CollapseColumn(List<GameItem> gameItems)
+    {
+        List<GameItem> movingItems = new List<GameItem>();
+        List<int> columnsToCollapse = GetColumns(gameItems);
+
+        foreach (int column in columnsToCollapse)
+        {
+            movingItems = movingItems.Union(CollapseColumn(column)).ToList();
+        }
+        return movingItems;
+    }
+
+    List<int> GetColumns(List<GameItem> gameItems)
+    {
+        List<int> columns = new List<int>();
+
+        foreach (GameItem item in gameItems)
+        {
+            if (!columns.Contains(item.xIndex))
+            {
+                columns.Add(item.xIndex);
+            }
+        }
+        return columns;
+    }
+
+    void ClearAndRefillBoard(List<GameItem> gameItems)
+    {
+        StartCoroutine(ClearAndRefillBoardRoutine(gameItems));
+    }
+
+    IEnumerator ClearAndRefillBoardRoutine(List<GameItem> gameItems)
+    {
+        StartCoroutine(ClearAndCollapseRoutine(gameItems));
+        yield return null;
+    }
+
+    IEnumerator ClearAndCollapseRoutine(List<GameItem> gameItems)
+    {
+        List<GameItem> movingItems = new List<GameItem>();
+        List<GameItem> matches = new List<GameItem>();
+        
+        HighlightItems(gameItems);
+        yield return new WaitForSeconds(.25f);
+
+        bool isFinished = false;
+        while (!isFinished)
+        {
+            ClearItemAt(gameItems);
+            yield return new WaitForSeconds(.25f);
+            movingItems = CollapseColumn(gameItems);
+
+            yield return new WaitForSeconds(.25f);
+            matches = FindMatchesAt(movingItems);
+
+            if (matches.Count == 0)
+            {
+                isFinished = true;
+                break;
+            }
+            else
+            {
+                yield return StartCoroutine(ClearAndCollapseRoutine(matches));
+            }
+        }
+
+        yield return null;
     }
 }
