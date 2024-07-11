@@ -23,16 +23,6 @@ public class GameItem : MonoBehaviour
         Teal,
         Wild
     }
-    void Start()
-    {
-
-    }
-
-
-    void Update()
-    {
-       
-    }
 
     public void Init(Board board)
     {
