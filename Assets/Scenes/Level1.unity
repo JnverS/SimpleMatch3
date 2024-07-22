@@ -223,6 +223,7 @@ MonoBehaviour:
   clearFXPrefab: {fileID: 6981843357856250986, guid: 5fe2ffdafe4db5443a081c1b08edadbc, type: 3}
   breakFXPrefab: {fileID: 7111130613547697298, guid: 7d7eff070f49fd24fb0c02b376e45e89, type: 3}
   doubleBreakFXPrefab: {fileID: 2758308341314054177, guid: a159b92277f229c49a9668513800af7d, type: 3}
+  bombFXPrefab: {fileID: 3359092224963918414, guid: dcfb8bef5ddd0b24684a070e254a6d92, type: 3}
 --- !u!4 &340863807
 Transform:
   m_ObjectHideFlags: 0
@@ -373,29 +374,16 @@ MonoBehaviour:
   RowBombPrefab: {fileID: 4831088941771011413, guid: 76d8c92c1b89f6f4188a1db85c7b11a5, type: 3}
   ColumnBombPrefab: {fileID: 7794114096425542339, guid: 8735bf822a987ba46a523f09b661cc0d, type: 3}
   AdjacentBombPrefab: {fileID: 721496633815668322, guid: 4061966265bdc6b43ba7b8fe02190076, type: 3}
+  ColorBombPrefab: {fileID: 6537105459239820032, guid: d206e3a95d90e4746b9b38cafec894f5, type: 3}
+  maxCollectibles: 3
+  CollectibleCount: 0
+  chanceForCollectible: 0.25
+  collectiblePrefabs:
+  - {fileID: 4796564122485072367, guid: ea7ed292c33601a41ad2b01fb250aa57, type: 3}
+  - {fileID: 5993522900822182040, guid: 3accc282e45d17c429f9cef63cebc73c, type: 3}
   swapTime: 0.1
-  startingTiles:
-  - prefab: {fileID: 6482451158735631478, guid: 5024e995d4042e343be22c7f6bf60eaa, type: 3}
-    x: 2
-    y: 2
-    z: 0
-  - prefab: {fileID: 1192284914261555282, guid: 356ec64d73629d249a685f3285c1c632, type: 3}
-    x: 2
-    y: 3
-    z: 0
-  startingGameItems:
-  - prefab: {fileID: 3400159385324070327, guid: 76466603479e8624389cf78ae0568309, type: 3}
-    x: 1
-    y: 0
-    z: 0
-  - prefab: {fileID: 3400159385324070327, guid: 76466603479e8624389cf78ae0568309, type: 3}
-    x: 1
-    y: 1
-    z: 0
-  - prefab: {fileID: 3400159385324070327, guid: 76466603479e8624389cf78ae0568309, type: 3}
-    x: 2
-    y: 2
-    z: 0
+  startingTiles: []
+  startingGameItems: []
   fillYOffset: 10
   fillMoveTime: 0.5
 --- !u!4 &520786959
