@@ -100,3 +100,5 @@ MonoBehaviour:
   xIndex: 0
   yIndex: 0
   matchValue: 1
+  scoreValue: 20
+  clearSound: {fileID: 8300000, guid: 8743038399aa64c5db230df6c26f4b71, type: 3}

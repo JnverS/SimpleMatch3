@@ -104,7 +104,7 @@ MonoBehaviour:
   breakableValue: 1
   breakableSprites:
   - {fileID: 21300000, guid: 6fe281f1b9e6fa44fa4ce6cc9c7823fd, type: 3}
-  - {fileID: 21300000, guid: 9121183672ea9b848bce0db0ba90f894, type: 3}
+  - {fileID: 21300000, guid: 585757b308d164ca4be60992762b4393, type: 3}
   - {fileID: 21300000, guid: a9c7c0df3d721a841ba5be6db33a60ee, type: 3}
   normalColor: {r: 0, g: 0, b: 0, a: 0}
 --- !u!61 &4101786215569031000
@@ -150,5 +150,5 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 0.7, y: 0.7}
+  m_Size: {x: 0.8, y: 0.8}
   m_EdgeRadius: 0
