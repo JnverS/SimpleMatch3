@@ -23,6 +23,8 @@ public class GameManager : Singleton<GameManager>
     public Sprite winIcon;
     public Sprite goalIcon;
 
+    public bool IsGameOver { get => _isGameOver; set => _isGameOver = value; }
+
     void Start()
     {
         _board = GameObject.FindObjectOfType<Board>().GetComponent<Board>();
@@ -44,6 +46,7 @@ public class GameManager : Singleton<GameManager>
     {
         yield return StartCoroutine("StartGameRoutine");
         yield return StartCoroutine("PlayGameRoutine");
+        yield return StartCoroutine("WaitForBoardRoutine", 0.5f);
         yield return StartCoroutine("EndGameRoutine");
     }
     public void BeginGame()
@@ -73,23 +76,35 @@ public class GameManager : Singleton<GameManager>
     }
     IEnumerator PlayGameRoutine()
     {
-        while (!_isGameOver)
+        while (!IsGameOver)
         { 
             if(ScoreManager.Instance != null)
             {
                 if (ScoreManager.Instance.CurrentScore >= scoreGoal)
                 {
-                    _isGameOver = true;
+                    IsGameOver = true;
                     _isWinner = true;
                 }
             }
             if (movesLeft == 0)
             {
-                _isGameOver = true;
+                IsGameOver = true;
                 _isWinner = false;
             }
             yield return null; 
         }
+    }
+    IEnumerator WaitForBoardRoutine(float delay = 0f)
+    {
+        if (_board != null)
+        {
+            yield return new WaitForSeconds(_board.swapTime);
+            while (_board.isRefilling)
+            {
+                yield return null;
+            }
+        }
+        yield return new WaitForSeconds(delay);
     }
     IEnumerator EndGameRoutine()
     {

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+[RequireComponent(typeof(BoardDeadlock))]
+[RequireComponent(typeof(BoardSuffler))]
 public class Board : MonoBehaviour
 {
     public int width;
@@ -46,6 +48,11 @@ public class Board : MonoBehaviour
 
     int _scoreMultiplier = 0;
 
+    public bool isRefilling = false;
+
+    BoardDeadlock _boardDeadlock;
+    BoardSuffler _boardSuffler;
+
     [System.Serializable]
     public class StartingObject
     {
@@ -63,6 +70,8 @@ public class Board : MonoBehaviour
     void Start()
     {
         _particleManager = GameObject.FindWithTag("ParticleManager").GetComponent<ParticleManager>();
+        _boardDeadlock = GetComponent<BoardDeadlock>();
+        _boardSuffler = GetComponent<BoardSuffler>();
     }
 
     public void SetupBoard()
@@ -201,6 +210,34 @@ public class Board : MonoBehaviour
 
     bool IsWithinBounds(int x, int y) =>
        (x >= 0 && x < width && y >= 0 && y < height);
+
+    void FillBoardFromList(List<GameItem> gameItems)
+    {
+        Queue<GameItem> unusedItems = new Queue<GameItem>(gameItems);
+        int maxIterations = 100;
+        int iterations = 0;
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                if (_allGameItems[i,j] == null && _allTiles[i,j].tileType != TileType.Obstacle)
+                {
+                    _allGameItems[i, j] = unusedItems.Dequeue();
+                    iterations = 0;
+                    while (HasMatchOnFill(i, j))
+                    {
+                        unusedItems.Enqueue(_allGameItems[i, j]);
+                        _allGameItems[i, j] = unusedItems.Dequeue();
+                        iterations++;
+                        if (iterations >= maxIterations)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
     void FillBoard(int falseYOffset = 0, float moveTime = .1f)
     {
         int maxIterations = 100;
@@ -211,23 +248,22 @@ public class Board : MonoBehaviour
             {
                 if (_allGameItems[i, j] == null && _allTiles[i, j].tileType != TileType.Obstacle)
                 {
-                    GameItem item = null;
 
                     if (j == height - 1 && CanAddCollectible())
                     {
-                        item = FillRandomCollectibleAt(i, j, falseYOffset, moveTime);
+                        FillRandomCollectibleAt(i, j, falseYOffset, moveTime);
                         CollectibleCount++;
                     }
                     else
                     {
 
-                        item = FillRandomGameItemAt(i, j, falseYOffset, moveTime);
+                        FillRandomGameItemAt(i, j, falseYOffset, moveTime);
                         iterations = 0;
 
                         while (HasMatchOnFill(i, j))
                         {
                             ClearItemAt(i, j);
-                            item = FillRandomGameItemAt(i, j, falseYOffset, moveTime);
+                            FillRandomGameItemAt(i, j, falseYOffset, moveTime);
                             iterations++;
 
                             if (iterations >= maxIterations)
@@ -310,7 +346,7 @@ public class Board : MonoBehaviour
 
     IEnumerator SwitchTilesRoutine(Tile clickedTile, Tile targetTile)
     {
-        if (_playerInputEnabled)
+        if (_playerInputEnabled && !GameManager.Instance.IsGameOver)
         {
             GameItem clicked = _allGameItems[clickedTile.xIndex, clickedTile.yIndex];
             GameItem target = _allGameItems[targetTile.xIndex, targetTile.yIndex];
@@ -600,6 +636,11 @@ public class Board : MonoBehaviour
             for (int j = 0; j < height; j++)
             {
                 ClearItemAt(i, j);
+
+                if (_particleManager != null)
+                {
+                    _particleManager.ClearItemFXAt(i, j);
+                }
             }
         }
     }
@@ -692,16 +733,28 @@ public class Board : MonoBehaviour
         }
         return movingItems;
     }
+    List<GameItem> CollapseColumn(List<int> columnsToCollapse)
+    {
+        List<GameItem> movingItems = new List<GameItem>();
 
+        foreach (int column in columnsToCollapse)
+        {
+            movingItems = movingItems.Union(CollapseColumn(column)).ToList();
+        }
+        return movingItems;
+    }
     List<int> GetColumns(List<GameItem> gameItems)
     {
         List<int> columns = new List<int>();
 
         foreach (GameItem item in gameItems)
         {
-            if (!columns.Contains(item.xIndex))
+            if (item != null)
             {
-                columns.Add(item.xIndex);
+                if (!columns.Contains(item.xIndex))
+                {
+                    columns.Add(item.xIndex);
+                }
             }
         }
         return columns;
@@ -715,6 +768,7 @@ public class Board : MonoBehaviour
     IEnumerator ClearAndRefillBoardRoutine(List<GameItem> gameItems)
     {
         _playerInputEnabled = false;
+        isRefilling = true;
         List<GameItem> matches = gameItems;
 
         _scoreMultiplier = 0;
@@ -729,7 +783,20 @@ public class Board : MonoBehaviour
             yield return new WaitForSeconds(.2f);
         }
         while (matches.Count != 0);
+
+        if (_boardDeadlock.IsDeadlocked(_allGameItems, 3))
+        {
+            yield return new WaitForSeconds(4f);
+           // ClearBoard();
+            yield return StartCoroutine(ShuffleBoardRoutine());
+
+            yield return new WaitForSeconds(1f);
+
+            yield return StartCoroutine(RefillRoutine());
+        }
+
         _playerInputEnabled = true;
+        isRefilling = false;
     }
 
     IEnumerator RefillRoutine()
@@ -765,6 +832,8 @@ public class Board : MonoBehaviour
 
             gameItems = gameItems.Union(collectedItems).ToList();
 
+            List<int> columnsToCollapse = GetColumns(gameItems);
+
             ClearItemAt(gameItems, bombedItems);
             BreakTileAt(gameItems);
 
@@ -780,7 +849,7 @@ public class Board : MonoBehaviour
                 _targetTileBomb = null;
             }
             yield return new WaitForSeconds(.25f);
-            movingItems = CollapseColumn(gameItems);
+            movingItems = CollapseColumn(columnsToCollapse);
 
             while (!IsCollapsed(movingItems))
             {
@@ -817,6 +886,10 @@ public class Board : MonoBehaviour
             if (item != null)
             {
                 if (item.transform.position.y - (float)item.yIndex > .001f)
+                {
+                    return false;
+                }
+                if (item.transform.position.x - (float)item.xIndex > .001f)
                 {
                     return false;
                 }
@@ -943,7 +1016,14 @@ public class Board : MonoBehaviour
 
         if (gameItems.Count >= 4)
         {
-            if (IsCormerMatch(gameItems))
+            if (gameItems.Count >= 5 && !IsCormerMatch(gameItems))
+            {
+                if (ColorBombPrefab != null)
+                {
+                    bomb = MakeBomb(ColorBombPrefab, x, y);
+                }
+            }
+            else if (IsCormerMatch(gameItems))
             {
                 if (AdjacentBombPrefab != null)
                 {
@@ -952,31 +1032,20 @@ public class Board : MonoBehaviour
             }
             else
             {
-                if (gameItems.Count >= 5)
+                if (swapDirection.x != 0)
                 {
-                    if (ColorBombPrefab != null)
+                    if (RowBombPrefab != null)
                     {
-                        bomb = MakeBomb(ColorBombPrefab, x, y);
+                        bomb = MakeBomb(RowBombPrefab, x, y);
                     }
                 }
                 else
                 {
-                    if (swapDirection.x != 0)
+                    if (ColumnBombPrefab != null)
                     {
-                        if (RowBombPrefab != null)
-                        {
-                            bomb = MakeBomb(RowBombPrefab, x, y);
-                        }
-                    }
-                    else
-                    {
-                        if (ColumnBombPrefab != null)
-                        {
-                            bomb = MakeBomb(ColumnBombPrefab, x, y);
-                        }
+                        bomb = MakeBomb(ColumnBombPrefab, x, y);
                     }
                 }
-
             }
         }
 
@@ -1080,4 +1149,38 @@ public class Board : MonoBehaviour
 
         return bombedItems.Except(itemsToRemove).ToList();
     }
+
+    public void TestDeadlock()
+    {
+        _boardDeadlock.IsDeadlocked(_allGameItems, 3);
+    }
+
+    public void SuffleBoard()
+    {
+        if (_playerInputEnabled)
+        {
+            StartCoroutine(ShuffleBoardRoutine());
+        }
+    }
+
+    IEnumerator ShuffleBoardRoutine()
+    {
+        List<GameItem> allItems = new List<GameItem>();
+        foreach (GameItem item in _allGameItems)
+        {
+            allItems.Add(item);
+        }
+
+        while (!IsCollapsed(allItems))
+        {
+            yield return null;
+        }
+
+        List<GameItem> normalItems = _boardSuffler.RemoveNormalItems(_allGameItems);
+        _boardSuffler.SuffleList(normalItems);
+        FillBoardFromList(normalItems);
+        _boardSuffler.MoveItems(_allGameItems, swapTime);
+        List<GameItem> matches = FindAllMatches();
+        StartCoroutine(ClearAndRefillBoardRoutine(matches));
+    }  
 }
