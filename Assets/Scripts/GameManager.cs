@@ -4,10 +4,11 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+[RequireComponent(typeof(LevelGoal))]
 public class GameManager : Singleton<GameManager>
 {
-    public int movesLeft = 30;
-    public int scoreGoal = 10000;
+    // public int movesLeft = 30;
+    // public int scoreGoal = 10000;
     public ScreenFader screenFader;
     public TMP_Text levelNameText;
     public TMP_Text movesLeftText;
@@ -22,25 +23,38 @@ public class GameManager : Singleton<GameManager>
     public Sprite loseIcon;
     public Sprite winIcon;
     public Sprite goalIcon;
+    LevelGoal _levelGoal;
+    public ScoreMeter scoreMeter;
+    public override void Awake()
+    {
+        base.Awake();
+        _levelGoal = GetComponent<LevelGoal>();
 
+        _board = GameObject.FindObjectOfType<Board>().GetComponent<Board>();
+    }
     public bool IsGameOver { get => _isGameOver; set => _isGameOver = value; }
 
     void Start()
     {
-        _board = GameObject.FindObjectOfType<Board>().GetComponent<Board>();
+        if (scoreMeter!= null)
+        {
+            scoreMeter.SetupStars(_levelGoal);
+        }
         Scene scene = SceneManager.GetActiveScene();
 
         if (levelNameText != null)
         {
             levelNameText.text = scene.name;
         }
+        _levelGoal.movesLeft++;
         UpdateMoves();
         StartCoroutine("ExecuteGameLoop");
     }
     public void UpdateMoves()
     {
+        _levelGoal.movesLeft--;
         if (movesLeftText != null)
-            movesLeftText.text = movesLeft.ToString();
+            movesLeftText.text = _levelGoal.movesLeft.ToString();
     }
     IEnumerator ExecuteGameLoop()
     {
@@ -52,7 +66,7 @@ public class GameManager : Singleton<GameManager>
     public void BeginGame()
     {
         _isReadyToBegin = true;
-    }    
+    }
     public void ReloadGame()
     {
         _isReadyToReload = true;
@@ -62,7 +76,7 @@ public class GameManager : Singleton<GameManager>
         if (messageWindow != null)
         {
             messageWindow.GetComponent<RectXformMover>().MoveOn();
-            messageWindow.ShowMessage(goalIcon, "score goal\n" + scoreGoal.ToString(), "start");
+            messageWindow.ShowMessage(goalIcon, "score goal\n" + _levelGoal.scoreGoals[0].ToString(), "start");
         }
         while (!_isReadyToBegin)
         {
@@ -77,21 +91,11 @@ public class GameManager : Singleton<GameManager>
     IEnumerator PlayGameRoutine()
     {
         while (!IsGameOver)
-        { 
-            if(ScoreManager.Instance != null)
-            {
-                if (ScoreManager.Instance.CurrentScore >= scoreGoal)
-                {
-                    IsGameOver = true;
-                    _isWinner = true;
-                }
-            }
-            if (movesLeft == 0)
-            {
-                IsGameOver = true;
-                _isWinner = false;
-            }
-            yield return null; 
+        {
+
+            _isGameOver = _levelGoal.IsGameOver();
+            _isWinner = _levelGoal.IsWinner();
+            yield return null;
         }
     }
     IEnumerator WaitForBoardRoutine(float delay = 0f)
@@ -141,6 +145,25 @@ public class GameManager : Singleton<GameManager>
         while (!_isReadyToReload)
             yield return null;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+    public void ScorePoints(GameItem item, int multiplier = 1, int bonus = 0)
+    {
+        if (item != null)
+        {
+            if (ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.AddScore(item.scoreValue * multiplier + bonus);
+                _levelGoal.UpdateScoreStars(ScoreManager.Instance.CurrentScore);
+                if (scoreMeter != null)
+                {
+                    scoreMeter.UpdateScoreMeter(ScoreManager.Instance.CurrentScore, _levelGoal.scoreStars);
+                }
+            }
+            if (SoundManager.Instance != null && item.clearSound!= null)
+            {
+                SoundManager.Instance.PlayClipAtPoint(item.clearSound, Vector3.zero, SoundManager.Instance.fxVolume);
+            }
+        }
     }
 }
 

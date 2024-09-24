@@ -391,7 +391,7 @@ public class Board : MonoBehaviour
                 {
                     if (GameManager.Instance != null)
                     {
-                        GameManager.Instance.movesLeft--;
+                        //GameManager.Instance._levelGoal.movesLeft--;
                         GameManager.Instance.UpdateMoves();
                     }
 
@@ -657,7 +657,10 @@ public class Board : MonoBehaviour
                 {
                     bonus = 20;
                 }
-                item.ScorePoints(_scoreMultiplier, bonus);
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.ScorePoints(item, _scoreMultiplier, bonus);
+                }
 
                 if (_particleManager != null)
                 {
